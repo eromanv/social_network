@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load cache %}
+{% load thumbnail %}
+{% block content %}
+{% include 'posts/includes/switcher.html' %}
+<h1>Чей я фоловер</h1>
+{% cache 20 index_page with page %}
+{% for post in page_obj %}
+  <article> 
+    <ul>
+    <li>
+      Автор: {{ post.author.get_full_name }}
+    </li>
+    <li>
+      Дата публикации: {{ post.pub_date|date:"d E Y" }}
+    </li>
+  </ul>
+  <p>{{ post.text }}</p> 
+  {% thumbnail post.image "600x400" crop="center" upscale=True as im %}
+    <img class="card-img my-2" src="{{ im.url }}">
+  {% endthumbnail %}
+  {% if post.group %}   
+    <a href="{% url 'posts:group_list' post.group.slug %}">все записи группы</a>
+  {% endif %} 
+  {% if not forloop.last %}<hr>{% endif %}
+  </article>
+{% endfor %} 
+{% endcache %}
+{% include 'posts/includes/paginator.html' %}
+
+{% endblock %}
