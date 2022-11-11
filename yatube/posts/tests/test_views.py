@@ -103,7 +103,7 @@ class PostsViewsTests(TestCase):
                 self.assertIsInstance(form_field, expected)
 
     def test_post_create_correct_context(self):
-        '''Шаблон post_create сформирован с правильным контекстом.'''
+        """Шаблон post_create сформирован с правильным контекстом."""
         response = self.authorized_user.get(reverse('posts:post_create'))
         form_fields = {
             'text': forms.fields.CharField,
@@ -115,15 +115,16 @@ class PostsViewsTests(TestCase):
                 self.assertIsInstance(form_field, expected)
 
     def test_post_another_group(self):
-        '''Пост не попал в другую группу'''
+        """Пост не попал в другую группу."""
         response = self.authorized_user.get(
-            reverse('posts:group_list', kwargs={'slug': f'{self.group.slug}'}))
+            reverse('posts:group_list', kwargs={'slug': self.group.slug})
+        )
         first_object = response.context['page_obj'][0]
         post_text_0 = first_object.text
         self.assertTrue(post_text_0, 'Проверка поста')
 
     def test_post_another_profile(self):
-        '''Пост в профайле пользователя.'''
+        """Пост в профайле пользователя."""
         response = self.authorized_user.get(
             reverse('posts:profile', kwargs={'username': 'auth'}))
         first_object = response.context['page_obj'][0]
@@ -131,7 +132,7 @@ class PostsViewsTests(TestCase):
         self.assertTrue(post_text_0, 'Проверка поста')
 
     def test_post_on_main_page(self):
-        '''Пост на главной странице сайта.'''
+        """Пост на главной странице сайта."""
         response = self.authorized_user.get(
             reverse('posts:index'))
         first_object = response.context['page_obj'][0]
@@ -235,21 +236,26 @@ class FollowTests(TestCase):
         self.client_auth_follower.force_login(self.user_follower)
         self.client_auth_following.force_login(self.user_following)
 
-    def test_follow_unfollow_auth_user(self):
-        """Авторизованный пользователь может подписываться/отписываться"""
+    def test_follow_auth_user(self):
+        """Авторизованный пользователь может подписываться"""
         self.client_auth_follower.get(
             reverse('posts:profile_follow',
-                    kwargs={'username': self.user_following.username}
-                    ))
-        self.assertTrue(Follow.objects.last())
+                    kwargs={'username': self.user_following.username})
+        )
+        follow_last = Follow.objects.last()
+        self.assertEqual(follow_last.user.username, 'follower')
+        self.assertEqual(follow_last.author.username, 'following')
+
+    def test_unfollow_auth_user(self):
+        """Авторизованный пользователь может отписываться"""
         self.client_auth_follower.get(
             reverse('posts:profile_unfollow',
-                    kwargs={'username': self.user_following.username}
-                    ))
-        self.assertFalse(Follow.objects.last())
+                    kwargs={'username': self.user_following.username})
+        )
+        self.assertEqual(Follow.objects.all().count(), 0)
 
     def test_new_post_for_followers(self):
-        """Запись появляется у подписанных и не появляется у неподписанных."""
+        """Запись появляется у подписанных."""
         Follow.objects.create(user=self.user_follower,
                               author=self.user_following
                               )
@@ -257,7 +263,12 @@ class FollowTests(TestCase):
             reverse('posts:follow_index')
         )
         self.assertEqual(len(response_follower.context['page_obj']), 1)
+
+    def test_no_new_post_for_followers(self):
+        """Запись не появляется у неподписанных."""
+        Follow.objects.create(user=self.user_follower,
+                              author=self.user_following
+                              )
         response_non_follower = self.client_auth_following.get(
-            reverse('posts:follow_index')
-        )
+            reverse('posts:follow_index'))
         self.assertEqual(len(response_non_follower.context['page_obj']), 0)

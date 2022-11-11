@@ -4,7 +4,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import CommentForm, PostForm
-from .models import Group, Post, User, Follow
+from .models import Follow, Group, Post, User
 
 User = get_user_model()
 
@@ -45,8 +45,7 @@ def profile(request, username):
     if request.user.is_authenticated:
         following = Follow.objects.filter(
             user=request.user).exists()
-    else:
-        following = False
+    following = False
     context = {
         'author': user,
         'page_obj': page_obj,
@@ -93,7 +92,8 @@ def post_edit(request, post_id):
         return redirect('posts:post_detail', post_id)
     form = PostForm(request.POST or None,
                     files=request.FILES or None,
-                    instance=post)
+                    instance=post
+                    )
     if form.is_valid():
         form.save()
         return redirect('posts:post_detail', post_id)
@@ -116,7 +116,7 @@ def add_comment(request, post_id):
 @login_required
 def follow_index(request):
     posts = Post.objects.filter(author__following__user=request.user)
-    paginator = Paginator(posts, 20)
+    paginator = Paginator(posts, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     context = {

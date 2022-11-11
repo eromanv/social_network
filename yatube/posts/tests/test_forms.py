@@ -1,16 +1,15 @@
 import shutil
 import tempfile
-
 from http import HTTPStatus
 
 from django.conf import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, Client, override_settings
-from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client, TestCase, override_settings
+from django.urls import reverse
 
-from posts.forms import PostForm, CommentForm
-from posts.models import Post, Group, Comment
+from posts.forms import CommentForm, PostForm
+from posts.models import Comment, Group, Post
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 User = get_user_model()
@@ -66,6 +65,7 @@ class PostFormTest(TestCase):
         form_data = {
             'text': 'Test title form',
             'group': self.group.id,
+            'author': self.post.author,
             'image': uploaded,
         }
         response = self.authorized_user.post(
@@ -77,8 +77,9 @@ class PostFormTest(TestCase):
         }))
         last_objects = Post.objects.last()
         self.assertEqual(Post.objects.count(), post_count + 1)
-        self.assertTrue(last_objects, form_data['text'])
-        self.assertTrue(last_objects, form_data['group'])
+        self.assertEqual(last_objects.text, 'Test title form')
+        self.assertEqual(last_objects.group.title, 'The title')
+        self.assertEqual(last_objects.author.username, 'Auth')
         self.assertTrue(last_objects, form_data['image'])
 
     def test_form_post_edit(self):
@@ -87,6 +88,7 @@ class PostFormTest(TestCase):
         form_data = {
             'text': 'Измененный пост',
             'group': self.group.id,
+            'author': self.post.author,
         }
         response = self.authorized_auth_client.post(
             reverse('posts:post_edit', kwargs={'post_id': post_new.id}),
@@ -100,6 +102,7 @@ class PostFormTest(TestCase):
         post2 = Post.objects.get(id=self.post.id)
         self.assertEqual(post2.text, 'Измененный пост')
         self.assertEqual(post2.group.title, 'The title')
+        self.assertEqual(post2.author.username, 'auth')
 
 
 class CommentFormTest(TestCase):
@@ -124,14 +127,15 @@ class CommentFormTest(TestCase):
         """Комментарий появляется на странице поста."""
         self.authorized_user.post(
             reverse('posts:add_comment', kwargs={'post_id': self.post.id}),
-            data={'text': 'Test comment form'},
+            data={
+                'text': 'Test comment form',
+                'author': self.user,
+            },
             follow=True
         )
-        self.assertTrue(
-            Comment.objects.filter(
-                text='Test comment form',
-            ).exists()
-        )
+        comment_last = Comment.objects.last()
+        self.assertEqual(comment_last.text, 'Test comment form')
+        self.assertEqual(comment_last.author.username, 'ForCommentTest')
 
     def test_non_auth_user_comment(self):
         """Комментировать посты может только авторизованный пользователь."""
@@ -141,5 +145,10 @@ class CommentFormTest(TestCase):
             follow=True
         )
         response = self.non_auth_user.get(
-            reverse('posts:add_comment', kwargs={'post_id': self.post.id}),)
+            reverse('posts:add_comment', kwargs={'post_id': self.post.id}))
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        response = self.authorized_user.get(
+            reverse('posts:post_detail', kwargs={'post_id': self.post.id}))
+        self.assertNotContains(response, 'Test comment forms')
+
+
