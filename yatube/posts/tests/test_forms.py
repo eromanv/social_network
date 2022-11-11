@@ -150,5 +150,3 @@ class CommentFormTest(TestCase):
         response = self.authorized_user.get(
             reverse('posts:post_detail', kwargs={'post_id': self.post.id}))
         self.assertNotContains(response, 'Test comment forms')
-
-
