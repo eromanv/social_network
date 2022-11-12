@@ -123,7 +123,7 @@ class CommentFormTest(TestCase):
         self.authorized_user = Client()
         self.authorized_user.force_login(self.user)
 
-    def test_auth_user_comment_appeares(self):
+    def test_auth_user_comment_appeares_due_form(self):
         """Комментарий появляется на странице поста."""
         self.authorized_user.post(
             reverse('posts:add_comment', kwargs={'post_id': self.post.id}),
@@ -137,6 +137,22 @@ class CommentFormTest(TestCase):
         self.assertEqual(comment_last.text, 'Test comment form')
         self.assertEqual(comment_last.author.username, 'ForCommentTest')
 
+    def test_comment_appears_on_post_detail(self):
+        post = Post.objects.create(
+            author=self.user,
+            text='Тестовый пост с комментарием',
+        )
+        comment = Comment.objects.create(
+            post=post,
+            author=self.user,
+            text='Комментарий к посту',
+        )
+        response = self.authorized_user.get(
+            (reverse('posts:post_detail', kwargs={'post_id': post.id})),
+        )
+        comment = response.context['post'].comments.first()
+        self.assertEqual(comment.text, 'Комментарий к посту')
+
     def test_non_auth_user_comment(self):
         """Комментировать посты может только авторизованный пользователь."""
         self.non_auth_user.post(
@@ -145,8 +161,19 @@ class CommentFormTest(TestCase):
             follow=True
         )
         response = self.non_auth_user.get(
-            reverse('posts:add_comment', kwargs={'post_id': self.post.id}))
+            reverse('posts:add_comment', kwargs={'post_id': self.post.id})
+        )
         self.assertEqual(response.status_code, HTTPStatus.FOUND)
+
+    def test_comment_not_appears_on_post_detail(self):
+        """Комментарий не появляется на странице с постом."""
+        self.non_auth_user.post(
+            reverse('posts:add_comment', kwargs={'post_id': self.post.id}),
+            data={'text': 'Test comment forms'},
+            follow=True
+        )
         response = self.authorized_user.get(
-            reverse('posts:post_detail', kwargs={'post_id': self.post.id}))
+            reverse('posts:post_detail', kwargs={'post_id': self.post.id})
+        )
         self.assertNotContains(response, 'Test comment forms')
+        self.assertNotIn(Comment.objects.last(), Comment.objects.all())
