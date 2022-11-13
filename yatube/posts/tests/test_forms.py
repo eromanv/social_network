@@ -136,22 +136,7 @@ class CommentFormTest(TestCase):
         comment_last = Comment.objects.last()
         self.assertEqual(comment_last.text, 'Test comment form')
         self.assertEqual(comment_last.author.username, 'ForCommentTest')
-
-    def test_comment_appears_on_post_detail(self):
-        post = Post.objects.create(
-            author=self.user,
-            text='Тестовый пост с комментарием',
-        )
-        comment = Comment.objects.create(
-            post=post,
-            author=self.user,
-            text='Комментарий к посту',
-        )
-        response = self.authorized_user.get(
-            (reverse('posts:post_detail', kwargs={'post_id': post.id})),
-        )
-        comment = response.context['post'].comments.first()
-        self.assertEqual(comment.text, 'Комментарий к посту')
+        self.assertEqual(comment_last.post, self.post)
 
     def test_non_auth_user_comment(self):
         """Комментировать посты может только авторизованный пользователь."""
@@ -176,4 +161,4 @@ class CommentFormTest(TestCase):
             reverse('posts:post_detail', kwargs={'post_id': self.post.id})
         )
         self.assertNotContains(response, 'Test comment forms')
-        self.assertNotIn(Comment.objects.last(), Comment.objects.all())
+
